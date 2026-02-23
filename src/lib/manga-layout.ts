@@ -207,13 +207,13 @@ export function getPanelCount(layoutType: PanelLayoutType): number {
  */
 export function getLayoutInfo(layoutType: PanelLayoutType): { name: string; description: string; icon: string } {
   const info: Record<PanelLayoutType, { name: string; description: string; icon: string }> = {
-    '2x2': { name: '2×2 Grid', description: 'Classic 4-panel grid', icon: '⊞' },
-    '3x1': { name: '3 Rows', description: 'Three horizontal panels', icon: '☰' },
-    '1-2-1': { name: 'Hero Split', description: 'Hero + 2 side panels + footer', icon: '⊟' },
-    hero: { name: 'Hero', description: 'Single full-canvas panel', icon: '□' },
-    action: { name: 'Action', description: 'Dynamic irregular panels', icon: '⚡' },
-    'comic-strip': { name: 'Strip', description: 'Horizontal 4-panel strip', icon: '▬' },
-    profile: { name: 'Profile', description: 'Portrait + info panels', icon: '👤' },
+    '2x2': { name: '2x2 Grid', description: 'Classic 4-panel grid', icon: '#' },
+    '3x1': { name: '3 Rows', description: 'Three horizontal panels', icon: '=' },
+    '1-2-1': { name: 'Hero Split', description: 'Hero + 2 side panels + footer', icon: 'H' },
+    hero: { name: 'Hero', description: 'Single full-canvas panel', icon: 'F' },
+    action: { name: 'Action', description: 'Dynamic irregular panels', icon: 'A' },
+    'comic-strip': { name: 'Strip', description: 'Horizontal 4-panel strip', icon: 'S' },
+    profile: { name: 'Profile', description: 'Portrait + info panels', icon: 'P' },
   };
   return info[layoutType] ?? { name: layoutType, description: '', icon: '?' };
 }

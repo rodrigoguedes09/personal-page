@@ -10,10 +10,12 @@ declare global {
   }
 }
 interface GPUAdapterShim {
-  requestAdapterInfo(): Promise<{ device?: string; vendor?: string; architecture?: string }>;
+  // Chrome 130+ uses synchronous `info` property; older browsers use async requestAdapterInfo()
+  info?: { device?: string; vendor?: string; architecture?: string };
+  requestAdapterInfo?(): Promise<{ device?: string; vendor?: string; architecture?: string }>;
   features: Set<string>;
-  limits: { maxBufferSize: number; [k: string]: any };
-  requestDevice(desc?: any): Promise<{ destroy(): void }>;
+  limits: { maxBufferSize: number; [k: string]: unknown };
+  requestDevice(desc?: unknown): Promise<{ destroy(): void }>;
 }
 
 /**
@@ -44,8 +46,15 @@ export async function detectWebGPU(): Promise<WebGPUStatus> {
       };
     }
 
-    // Step 3: Get adapter info
-    const adapterInfo = await adapter.requestAdapterInfo();
+    // Step 3: Get adapter info (Chrome 130+ uses sync `adapter.info`, older uses async `requestAdapterInfo()`)
+    let adapterInfo: { device?: string; vendor?: string; architecture?: string };
+    if (adapter.info) {
+      adapterInfo = adapter.info;
+    } else if (typeof adapter.requestAdapterInfo === 'function') {
+      adapterInfo = await adapter.requestAdapterInfo();
+    } else {
+      adapterInfo = {};
+    }
     const features: string[] = Array.from(adapter.features) as string[];
 
     // Step 4: Check minimum requirements

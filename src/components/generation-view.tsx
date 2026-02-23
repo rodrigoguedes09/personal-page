@@ -8,12 +8,13 @@ import { ProgressBar } from './progress-bar';
 
 /**
  * Generation controls — trigger, monitor, and cancel AI image generation.
+ * Works with both local (Web Worker) and API (HuggingFace) modes.
  */
 export function GenerationView() {
   const {
     panels,
     isGenerating,
-    modelStatus,
+    generationMode,
     generationConfig,
     jobs,
     setGenerationConfig,
@@ -22,9 +23,10 @@ export function GenerationView() {
     setShowAdvanced,
   } = useAppStore();
 
-  const { generateAllPanels, cancelGeneration, isModelReady } = useGeneration();
+  const { generateAllPanels, cancelGeneration, generationStatus, isModelReady } = useGeneration();
 
-  const canGenerate = isModelReady && panels.length > 0 && !isGenerating;
+  const isLocal = generationMode === 'local';
+  const canGenerate = panels.length > 0 && !isGenerating && (!isLocal || isModelReady);
 
   // Overall progress
   const completedJobs = jobs.filter((j) => j.status === 'complete').length;
@@ -36,14 +38,14 @@ export function GenerationView() {
       {/* Generation Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-manga text-lg tracking-wide text-manga-black">
-          ⚡ Generate Panels
+          Generate Panels
         </h3>
 
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="text-[10px] font-bold uppercase tracking-widest text-manga-gray-400 hover:text-manga-black"
         >
-          {showAdvanced ? '▾ Hide' : '▸ Advanced'} Settings
+          {showAdvanced ? 'Hide' : 'Advanced'} Settings
         </button>
       </div>
 
@@ -79,7 +81,7 @@ export function GenerationView() {
               <input
                 type="number"
                 value={generationConfig.steps}
-                onChange={(e) => setGenerationConfig({ steps: parseInt(e.target.value) || 4 })}
+                onChange={(e) => setGenerationConfig({ steps: parseInt(e.target.value) || 30 })}
                 min={1}
                 max={50}
                 className="w-full rounded-sm border border-manga-gray-300 px-2 py-1 text-sm focus:border-manga-black focus:outline-none"
@@ -93,8 +95,8 @@ export function GenerationView() {
               <input
                 type="number"
                 value={generationConfig.guidanceScale}
-                onChange={(e) => setGenerationConfig({ guidanceScale: parseFloat(e.target.value) || 0 })}
-                min={0}
+                onChange={(e) => setGenerationConfig({ guidanceScale: parseFloat(e.target.value) || 7.5 })}
+                min={1}
                 max={20}
                 step={0.5}
                 className="w-full rounded-sm border border-manga-gray-300 px-2 py-1 text-sm focus:border-manga-black focus:outline-none"
@@ -138,6 +140,15 @@ export function GenerationView() {
         </div>
       )}
 
+      {/* Current Status */}
+      {generationStatus.status === 'generating' && generationStatus.currentStatus && (
+        <div className="rounded-sm border border-manga-gray-200 bg-blue-50 p-3">
+          <p className="text-xs text-blue-700">
+            {generationStatus.currentStatus}
+          </p>
+        </div>
+      )}
+
       {/* Generate / Cancel Buttons */}
       <div className="flex gap-3">
         {!isGenerating ? (
@@ -153,11 +164,11 @@ export function GenerationView() {
                 : 'bg-manga-gray-200 text-manga-gray-400 cursor-not-allowed',
             )}
           >
-            {!isModelReady
-              ? '⬆ Load Model First'
-              : panels.length === 0
-                ? 'Set Up Panels First'
-                : `⚡ Generate ${panels.length} Panel${panels.length !== 1 ? 's' : ''}`}
+            {panels.length === 0
+              ? 'Set Up Panels First'
+              : isLocal && !isModelReady
+                ? 'Load Model First'
+                : `Generate ${panels.length} Panel${panels.length !== 1 ? 's' : ''}`}
           </button>
         ) : (
           <button
@@ -168,7 +179,7 @@ export function GenerationView() {
               'transition-all hover:bg-red-50',
             )}
           >
-            ✕ Cancel Generation
+            Cancel Generation
           </button>
         )}
 
@@ -182,7 +193,7 @@ export function GenerationView() {
             'disabled:opacity-30 disabled:cursor-not-allowed',
           )}
         >
-          Export →
+          Export
         </button>
       </div>
 
@@ -220,15 +231,28 @@ export function GenerationView() {
               </div>
             ))}
           </div>
+
+          {/* Show errors */}
+          {jobs.some((j) => j.status === 'error') && (
+            <div className="rounded-sm bg-red-50 p-2">
+              {jobs
+                .filter((j) => j.status === 'error')
+                .map((j) => (
+                  <p key={j.id} className="text-[10px] text-red-600">
+                    {j.error}
+                  </p>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Model not ready warning */}
-      {modelStatus.status !== 'ready' && (
-        <p className="text-center text-xs text-manga-gray-400">
-          ⚠ Load the AI model first to enable image generation
-        </p>
-      )}
+      {/* Info text */}
+      <p className="text-center text-[10px] text-manga-gray-400">
+        {isLocal
+          ? 'Images are generated locally in your browser. All data stays private.'
+          : 'Images are generated via HuggingFace Inference API. First request may take 20-60s for model warm-up.'}
+      </p>
     </div>
   );
 }

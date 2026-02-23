@@ -87,6 +87,9 @@ export interface PanelEffect {
 // AI Generation Configuration
 // ============================================================
 
+/** Generation mode — local (private, in-browser) or API (fast, server-side) */
+export type GenerationMode = 'local' | 'api';
+
 /** Parameters for the Stable Diffusion generation */
 export interface GenerationConfig {
   steps: number;
@@ -100,37 +103,61 @@ export interface GenerationConfig {
   batchSize?: number;
 }
 
-/** Available AI models */
+/** Available AI model (works for both local ONNX and API models) */
 export interface ModelConfig {
   id: string;
   name: string;
   description: string;
-  size: string;
-  quantization: 'fp32' | 'fp16' | 'int8' | 'q4' | 'q8';
   isDefault: boolean;
-  components: ModelComponent[];
-  minVRAM?: number; // MB
+  mode: GenerationMode;
+  // Local-specific
+  size?: string;
+  // API-specific
+  defaultSteps?: number;
+  defaultCfg?: number;
+  maxResolution?: number;
 }
 
-export interface ModelComponent {
-  name: string;
-  subfolder: string;
-  filename: string;
-  sizeBytes: number;
-}
-
-/** Real-time model loading progress */
-export interface ModelLoadProgress {
-  status: 'idle' | 'checking' | 'downloading' | 'loading' | 'ready' | 'error';
-  progress: number; // 0-100
-  currentFile?: string;
-  loadedFiles: number;
-  totalFiles: number;
-  totalSizeBytes?: number;
-  downloadedBytes?: number;
+/** Generation status for tracking API calls */
+export interface GenerationStatus {
+  status: 'idle' | 'generating' | 'error';
+  currentPanel: number;
+  totalPanels: number;
+  currentStatus?: string;
   error?: string;
-  cached?: boolean;
 }
+
+// ============================================================
+// Local Model (Worker-based)
+// ============================================================
+
+/** Progress updates while downloading/loading a local model */
+export interface ModelLoadProgress {
+  status: 'idle' | 'initializing' | 'downloading' | 'loading' | 'ready' | 'error';
+  progress: number; // 0-100
+  message?: string;
+  error?: string;
+  file?: string;
+  loaded?: number;
+  total?: number;
+}
+
+/** Messages sent TO the Stable Diffusion Web Worker */
+export type WorkerInMessage =
+  | { type: 'init' }
+  | { type: 'load-model'; modelId: string; device?: 'webgpu' | 'wasm' }
+  | { type: 'generate'; prompt: string; negativePrompt?: string; config: GenerationConfig }
+  | { type: 'cancel' };
+
+/** Messages sent FROM the Stable Diffusion Web Worker */
+export type WorkerOutMessage =
+  | { type: 'init-complete' }
+  | { type: 'model-progress'; progress: ModelLoadProgress }
+  | { type: 'model-ready'; modelId: string }
+  | { type: 'generation-progress'; step: number; totalSteps: number; imagePreview?: string }
+  | { type: 'generation-complete'; imageDataUrl: string }
+  | { type: 'error'; error: string; context?: string }
+  | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string };
 
 // ============================================================
 // WebGPU
@@ -194,25 +221,6 @@ export interface ExportResult {
 }
 
 // ============================================================
-// Worker Messages
-// ============================================================
-
-export type WorkerInMessage =
-  | { type: 'init'; config?: Record<string, unknown> }
-  | { type: 'load-model'; modelId: string; quantization: string; device: string }
-  | { type: 'generate'; jobId: string; prompt: string; negativePrompt?: string; config: GenerationConfig }
-  | { type: 'cancel'; jobId: string };
-
-export type WorkerOutMessage =
-  | { type: 'init-complete' }
-  | { type: 'model-progress'; progress: ModelLoadProgress }
-  | { type: 'model-ready' }
-  | { type: 'generation-progress'; jobId: string; step: number; totalSteps: number; latentPreviewUrl?: string }
-  | { type: 'generation-complete'; jobId: string; imageDataUrl: string; width: number; height: number; seed: number }
-  | { type: 'error'; jobId?: string; message: string; stack?: string }
-  | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string };
-
-// ============================================================
 // App State
 // ============================================================
 
@@ -227,11 +235,13 @@ export interface AppState {
   generationConfig: GenerationConfig;
   jobs: GenerationJob[];
 
-  // Model
-  modelStatus: ModelLoadProgress;
+  // Model / Generation Mode
+  generationMode: GenerationMode;
   selectedModel: string;
+  generationStatus: GenerationStatus;
+  modelStatus: ModelLoadProgress;
 
-  // WebGPU
+  // WebGPU (informational)
   webgpuStatus: WebGPUStatus;
 
   // UI

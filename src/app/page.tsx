@@ -20,10 +20,10 @@ import { cn } from '@/lib/utils';
 // ============================================================
 
 const STEPS = [
-  { id: 'input' as const, label: '1. Your Info', icon: '✏️' },
-  { id: 'customize' as const, label: '2. Customize', icon: '🎨' },
-  { id: 'generate' as const, label: '3. Generate', icon: '⚡' },
-  { id: 'export' as const, label: '4. Export', icon: '📤' },
+  { id: 'input' as const, label: '1. Your Info', icon: '01' },
+  { id: 'customize' as const, label: '2. Customize', icon: '02' },
+  { id: 'generate' as const, label: '3. Generate', icon: '03' },
+  { id: 'export' as const, label: '4. Export', icon: '04' },
 ] as const;
 
 // ============================================================
@@ -54,6 +54,13 @@ export default function HomePage() {
       buildPanels();
     }
   }, [currentStep, buildPanels]);
+
+  // Also rebuild on step 1 when layout or style changes so the preview updates live
+  useEffect(() => {
+    if (currentStep === 'input' && userProfile.name.trim().length > 0) {
+      buildPanels();
+    }
+  }, [currentStep, layoutType, style, buildPanels, userProfile.name]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -132,7 +139,7 @@ export default function HomePage() {
                   <div className="space-y-6">
                     <div className="manga-card transition-none hover:translate-x-0 hover:translate-y-0 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                       <h3 className="mb-4 font-manga text-lg tracking-wide text-manga-black">
-                        🔧 Panel Prompts
+                        Panel Prompts
                       </h3>
                       <p className="mb-3 text-xs text-manga-gray-500">
                         Review and edit the AI prompts for each panel. These are auto-generated from your profile data.
@@ -149,7 +156,7 @@ export default function HomePage() {
                           onClick={() => setCurrentStep('input')}
                           className="text-xs font-bold text-manga-gray-400 hover:text-manga-black"
                         >
-                          ← Back
+                          Back
                         </button>
                         <button
                           onClick={() => setCurrentStep('generate')}
@@ -160,7 +167,7 @@ export default function HomePage() {
                             'shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px]',
                           )}
                         >
-                          Generate →
+                          Generate
                         </button>
                       </div>
                     </div>
@@ -213,7 +220,7 @@ function PanelPromptEditor({
         </span>
         {panel.speechBubble && (
           <span className="text-[10px] text-manga-gray-400">
-            💬 {panel.speechBubble.type}
+            [{panel.speechBubble.type}]
           </span>
         )}
       </div>

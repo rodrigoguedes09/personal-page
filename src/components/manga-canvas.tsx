@@ -98,7 +98,7 @@ export function MangaCanvas({ className }: { className?: string }) {
           </span>
           <span className="text-manga-gray-300">•</span>
           <span className="text-[10px] text-manga-gray-400">
-            {CANVAS_DEFAULTS.width}×{CANVAS_DEFAULTS.height}px
+            {CANVAS_DEFAULTS.width}x{CANVAS_DEFAULTS.height}px
           </span>
         </div>
       )}

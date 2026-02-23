@@ -1,246 +1,229 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GenerationConfig, ModelLoadProgress, WorkerInMessage, WorkerOutMessage } from '@/types';
+import { useCallback, useRef, useState } from 'react';
+import type { GenerationConfig } from '@/types';
 import { useAppStore } from '@/store/app-store';
 import { uid } from '@/lib/utils';
+import { generateImage, getStoredToken } from '@/lib/hf-inference';
+import { MANGA_STYLE_PROMPTS } from '@/lib/constants';
+import { useLocalGeneration } from './use-local-generation';
 
 /**
- * Hook for managing the SD inference worker.
- * Handles model loading, image generation, and job tracking.
+ * Facade hook — delegates to either local (Web Worker) or API (HuggingFace)
+ * generation depending on the current `generationMode` in the store.
+ *
+ * Local mode: maximum privacy, runs 100 % in-browser after initial download.
+ * API mode:   no downloads needed, sends prompts to HuggingFace servers.
  */
 export function useGeneration() {
-  const workerRef = useRef<Worker | null>(null);
-  const [isWorkerReady, setIsWorkerReady] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  // ---- Local generation (worker-based) ----
+  const local = useLocalGeneration();
+
+  // ---- API generation state ----
+  const abortRef = useRef<AbortController | null>(null);
+  const [apiLogs, setApiLogs] = useState<string[]>([]);
 
   const {
+    generationMode,
     selectedModel,
     generationConfig,
-    webgpuStatus,
-    modelStatus,
-    setModelStatus,
+    generationStatus,
+    setGenerationStatus,
     setIsGenerating,
     addJob,
     updateJob,
     updatePanelImage,
   } = useAppStore();
 
-  // ---- Initialize Worker ----
-  useEffect(() => {
-    const worker = new Worker(
-      new URL('../workers/sd-worker.ts', import.meta.url),
-      { type: 'module' },
-    );
-
-    worker.onmessage = (event: MessageEvent<WorkerOutMessage>) => {
-      handleWorkerMessage(event.data);
-    };
-
-    worker.onerror = (error) => {
-      console.error('[Worker Error]', error);
-      setLogs((prev) => [...prev, `[ERROR] Worker: ${error.message}`]);
-    };
-
-    workerRef.current = worker;
-
-    // Send init message
-    sendToWorker({ type: 'init' });
-
-    return () => {
-      worker.terminate();
-      workerRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const apiLog = useCallback((level: string, message: string) => {
+    setApiLogs((prev) => [...prev, `[${level.toUpperCase()}] ${message}`]);
   }, []);
 
-  // ---- Message Handler ----
-  const handleWorkerMessage = useCallback(
-    (msg: WorkerOutMessage) => {
-      switch (msg.type) {
-        case 'init-complete':
-          setIsWorkerReady(true);
-          setLogs((prev) => [...prev, '[INFO] Worker initialized']);
-          break;
+  // ============================================================
+  // API-mode generation (unchanged from current implementation)
+  // ============================================================
 
-        case 'model-progress':
-          setModelStatus(msg.progress);
-          break;
-
-        case 'model-ready':
-          setModelStatus({
-            status: 'ready',
-            progress: 100,
-            loadedFiles: 4,
-            totalFiles: 4,
-          });
-          setLogs((prev) => [...prev, '[INFO] Model ready']);
-          break;
-
-        case 'generation-progress':
-          updateJob(msg.jobId, {
-            status: 'running',
-            progress: Math.round((msg.step / msg.totalSteps) * 100),
-          });
-          break;
-
-        case 'generation-complete':
-          updateJob(msg.jobId, {
-            status: 'complete',
-            progress: 100,
-            result: {
-              panelId: '', // Will be set from the job
-              imageDataUrl: msg.imageDataUrl,
-              width: msg.width,
-              height: msg.height,
-              prompt: '',
-              seed: msg.seed,
-              timestamp: Date.now(),
-            },
-          });
-
-          // Find the job and update the panel image
-          const job = useAppStore.getState().jobs.find((j) => j.id === msg.jobId);
-          if (job) {
-            updatePanelImage(job.panelId, msg.imageDataUrl);
-          }
-
-          // Check if all jobs are done
-          const allDone = useAppStore
-            .getState()
-            .jobs.every(
-              (j) => j.id === msg.jobId || j.status === 'complete' || j.status === 'error',
-            );
-          if (allDone) {
-            setIsGenerating(false);
-          }
-          break;
-
-        case 'error':
-          console.error('[Worker]', msg.message);
-          setLogs((prev) => [...prev, `[ERROR] ${msg.message}`]);
-          if (msg.jobId) {
-            updateJob(msg.jobId, {
-              status: 'error',
-              error: msg.message,
-            });
-          }
-          break;
-
-        case 'log':
-          setLogs((prev) => [...prev, `[${msg.level.toUpperCase()}] ${msg.message}`]);
-          break;
-      }
-    },
-    [setModelStatus, updateJob, updatePanelImage, setIsGenerating],
-  );
-
-  // ---- Send to Worker ----
-  const sendToWorker = useCallback((msg: WorkerInMessage) => {
-    workerRef.current?.postMessage(msg);
-  }, []);
-
-  // ---- Load Model ----
-  const loadModel = useCallback(
-    (modelId?: string) => {
-      const id = modelId ?? selectedModel;
-      const device = webgpuStatus.available ? 'webgpu' : 'wasm';
-
-      setModelStatus({
-        status: 'checking',
-        progress: 0,
-        loadedFiles: 0,
-        totalFiles: 4,
-      });
-
-      sendToWorker({
-        type: 'load-model',
-        modelId: id,
-        quantization: 'fp16',
-        device,
-      });
-    },
-    [selectedModel, webgpuStatus.available, setModelStatus, sendToWorker],
-  );
-
-  // ---- Generate Image for a Panel ----
-  const generateForPanel = useCallback(
-    (panelId: string, prompt: string, negativePrompt?: string, configOverrides?: Partial<GenerationConfig>) => {
-      if (modelStatus.status !== 'ready') {
-        console.warn('Model not ready');
-        return null;
-      }
-
-      const jobId = uid();
+  const apiGenerateForPanel = useCallback(
+    async (
+      panelId: string,
+      prompt: string,
+      negativePrompt?: string,
+      configOverrides?: Partial<GenerationConfig>,
+    ): Promise<string | null> => {
       const config: GenerationConfig = { ...generationConfig, ...configOverrides };
+      const jobId = uid();
 
-      // Create job
-      const job = {
+      const stylePrompts = MANGA_STYLE_PROMPTS[config.style];
+      const fullPrompt = `${stylePrompts.prefix} ${prompt} ${stylePrompts.suffix}`;
+      const fullNegative = [
+        negativePrompt ?? config.negativePrompt ?? '',
+        stylePrompts.negative,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      addJob({
         id: jobId,
         panelId,
-        prompt,
+        prompt: fullPrompt,
         config,
-        status: 'queued' as const,
+        status: 'running',
         progress: 0,
-      };
-
-      addJob(job);
-
-      // Send to worker
-      sendToWorker({
-        type: 'generate',
-        jobId,
-        prompt,
-        negativePrompt,
-        config,
       });
 
-      return jobId;
+      try {
+        const result = await generateImage(
+          {
+            modelId: selectedModel,
+            prompt: fullPrompt,
+            negativePrompt: fullNegative,
+            width: config.width,
+            height: config.height,
+            guidanceScale: config.guidanceScale,
+            steps: config.steps,
+            seed: config.seed,
+            token: getStoredToken() || undefined,
+            signal: abortRef.current?.signal,
+          },
+          (status) => {
+            setGenerationStatus({
+              ...useAppStore.getState().generationStatus,
+              currentStatus: status,
+            });
+          },
+        );
+
+        updateJob(jobId, {
+          status: 'complete',
+          progress: 100,
+          result: {
+            panelId,
+            imageDataUrl: result.imageDataUrl,
+            width: config.width,
+            height: config.height,
+            prompt: fullPrompt,
+            seed: config.seed ?? -1,
+            timestamp: Date.now(),
+          },
+        });
+
+        updatePanelImage(panelId, result.imageDataUrl);
+        apiLog('info', `Panel ${panelId} generated (API)`);
+        return jobId;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          updateJob(jobId, { status: 'cancelled' });
+          return null;
+        }
+        const errMsg = error instanceof Error ? error.message : String(error);
+        updateJob(jobId, { status: 'error', error: errMsg });
+        apiLog('error', `Panel ${panelId} failed: ${errMsg}`);
+        return null;
+      }
     },
-    [modelStatus.status, generationConfig, addJob, sendToWorker],
+    [selectedModel, generationConfig, addJob, updateJob, updatePanelImage, setGenerationStatus, apiLog],
   );
 
-  // ---- Generate All Panels ----
-  const generateAllPanels = useCallback(() => {
+  const apiGenerateAllPanels = useCallback(async () => {
     const panels = useAppStore.getState().panels;
     if (panels.length === 0) return;
 
+    abortRef.current = new AbortController();
     setIsGenerating(true);
+    setGenerationStatus({
+      status: 'generating',
+      currentPanel: 0,
+      totalPanels: panels.length,
+      currentStatus: 'Starting API generation...',
+    });
 
-    // Generate sequentially (one at a time to manage GPU memory)
-    for (const panel of panels) {
-      generateForPanel(panel.id, panel.prompt);
+    apiLog('info', `Generating ${panels.length} panels via API...`);
+
+    for (let i = 0; i < panels.length; i++) {
+      const panel = panels[i];
+      if (abortRef.current?.signal.aborted) break;
+
+      setGenerationStatus({
+        status: 'generating',
+        currentPanel: i + 1,
+        totalPanels: panels.length,
+        currentStatus: `Generating panel ${i + 1} of ${panels.length}...`,
+      });
+
+      await apiGenerateForPanel(panel.id, panel.prompt);
     }
-  }, [generateForPanel, setIsGenerating]);
 
-  // ---- Cancel Generation ----
-  const cancelGeneration = useCallback(
-    (jobId?: string) => {
-      if (jobId) {
-        sendToWorker({ type: 'cancel', jobId });
-        updateJob(jobId, { status: 'cancelled' });
-      } else {
-        // Cancel all running jobs
-        const jobs = useAppStore.getState().jobs;
-        for (const job of jobs) {
-          if (job.status === 'queued' || job.status === 'running') {
-            sendToWorker({ type: 'cancel', jobId: job.id });
-            updateJob(job.id, { status: 'cancelled' });
-          }
-        }
+    setIsGenerating(false);
+    setGenerationStatus({
+      status: 'idle',
+      currentPanel: panels.length,
+      totalPanels: panels.length,
+      currentStatus: 'Generation complete',
+    });
+    apiLog('info', 'All panels processed (API)');
+  }, [apiGenerateForPanel, setIsGenerating, setGenerationStatus, apiLog]);
+
+  const apiCancelGeneration = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    const jobs = useAppStore.getState().jobs;
+    for (const job of jobs) {
+      if (job.status === 'queued' || job.status === 'running') {
+        updateJob(job.id, { status: 'cancelled' });
       }
-      setIsGenerating(false);
+    }
+
+    setIsGenerating(false);
+    setGenerationStatus({
+      status: 'idle',
+      currentPanel: 0,
+      totalPanels: 0,
+      currentStatus: 'Cancelled',
+    });
+    apiLog('info', 'API generation cancelled');
+  }, [updateJob, setIsGenerating, setGenerationStatus, apiLog]);
+
+  // ============================================================
+  // Facade — delegate based on generationMode
+  // ============================================================
+
+  const isLocal = generationMode === 'local';
+
+  const generateForPanel = useCallback(
+    (panelId: string, prompt: string, negativePrompt?: string, configOverrides?: Partial<GenerationConfig>) => {
+      return isLocal
+        ? local.generateForPanel(panelId, prompt, negativePrompt, configOverrides)
+        : apiGenerateForPanel(panelId, prompt, negativePrompt, configOverrides);
     },
-    [sendToWorker, updateJob, setIsGenerating],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isLocal, local, apiGenerateForPanel],
   );
 
+  const generateAllPanels = useCallback(() => {
+    return isLocal ? local.generateAllPanels() : apiGenerateAllPanels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocal, local, apiGenerateAllPanels]);
+
+  const cancelGeneration = useCallback(() => {
+    return isLocal ? local.cancelGeneration() : apiCancelGeneration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocal, local, apiCancelGeneration]);
+
   return {
-    isWorkerReady,
-    loadModel,
+    // Shared
     generateForPanel,
     generateAllPanels,
     cancelGeneration,
-    logs,
-    isModelReady: modelStatus.status === 'ready',
+    logs: isLocal ? local.logs : apiLogs,
+    generationStatus,
+
+    // Local-specific (exposed for model-loader)
+    initWorker: local.initWorker,
+    destroyWorker: local.destroyWorker,
+    isWorkerReady: local.isWorkerReady,
+    isModelReady: local.isModelReady,
+    loadModel: local.loadModel,
+    modelStatus: local.modelStatus,
   };
 }

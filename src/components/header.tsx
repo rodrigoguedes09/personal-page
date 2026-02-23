@@ -36,7 +36,7 @@ export function Header() {
 
         <nav className="flex items-center gap-4">
           <a
-            href="https://github.com/manga-readme-generator"
+            href="https://github.com/rodrigoguedes09/personal-page"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(

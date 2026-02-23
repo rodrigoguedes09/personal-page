@@ -67,13 +67,13 @@ export function ExportOptions() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="font-manga text-lg tracking-wide text-manga-black">
-          📤 Export
+          Export
         </h3>
         <button
           onClick={() => setCurrentStep('generate')}
           className="text-xs font-bold text-manga-gray-400 hover:text-manga-black"
         >
-          ← Back to Generate
+          Back to Generate
         </button>
       </div>
 
@@ -129,7 +129,7 @@ export function ExportOptions() {
             'disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none',
           )}
         >
-          👁 Preview
+          Preview
         </button>
 
         {/* Download PNG */}
@@ -144,7 +144,7 @@ export function ExportOptions() {
             'disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none',
           )}
         >
-          ⬇ Download PNG
+          Download PNG
         </button>
 
         {/* Copy Markdown */}
@@ -159,7 +159,7 @@ export function ExportOptions() {
               : 'bg-manga-gold text-manga-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px]',
           )}
         >
-          {copiedMarkdown ? '✓ Copied!' : '📋 Copy Markdown'}
+          {copiedMarkdown ? 'Copied!' : 'Copy Markdown'}
         </button>
       </div>
 
@@ -191,7 +191,7 @@ export function ExportOptions() {
             onClick={handleCopyMarkdown}
             className="text-[10px] font-bold text-manga-blue hover:underline"
           >
-            {copiedMarkdown ? '✓ Copied' : 'Copy'}
+            {copiedMarkdown ? 'Copied' : 'Copy'}
           </button>
         </div>
         <pre className="overflow-x-auto rounded-sm border-2 border-manga-gray-200 bg-manga-gray-100 p-3">
@@ -209,7 +209,7 @@ export function ExportOptions() {
           <li>2. Add it to your GitHub repository (root or <code className="rounded bg-manga-gray-200 px-1 py-0.5 text-manga-black">.github/</code> folder)</li>
           <li>3. Copy the Markdown code and paste it at the top of your <code className="rounded bg-manga-gray-200 px-1 py-0.5 text-manga-black">README.md</code></li>
           <li>4. Update the image path if needed</li>
-          <li>5. Commit and push — enjoy your manga README! 🎉</li>
+          <li>5. Commit and push — enjoy your manga README!</li>
         </ol>
       </div>
     </div>

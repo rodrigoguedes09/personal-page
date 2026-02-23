@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Generate manga-style README images for GitHub using 100% client-side AI with WebGPU",
+  "description": "Generate manga-style README images for GitHub using AI",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +11,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.4.0",
     "clsx": "^2.1.1",
     "html-to-image": "^1.11.11",
     "lucide-react": "^0.468.0",

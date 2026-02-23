@@ -7,10 +7,12 @@ import type {
   MangaPanel,
   GenerationConfig,
   GenerationJob,
+  GenerationMode,
+  GenerationStatus,
   ModelLoadProgress,
   WebGPUStatus,
 } from '@/types';
-import { DEFAULT_GENERATION_CONFIG, DEFAULT_MODEL_ID } from '@/lib/constants';
+import { DEFAULT_GENERATION_CONFIG, DEFAULT_MODEL_ID, DEFAULT_GENERATION_MODE, getDefaultModelId } from '@/lib/constants';
 
 // ============================================================
 // Application Store (Zustand)
@@ -37,9 +39,11 @@ interface AppActions {
   removeJob: (jobId: string) => void;
   clearJobs: () => void;
 
-  // Model
-  setModelStatus: (status: ModelLoadProgress) => void;
+  // Mode & Model
+  setGenerationMode: (mode: GenerationMode) => void;
   setSelectedModel: (modelId: string) => void;
+  setGenerationStatus: (status: GenerationStatus) => void;
+  setModelStatus: (status: ModelLoadProgress) => void;
 
   // WebGPU
   setWebGPUStatus: (status: WebGPUStatus) => void;
@@ -69,13 +73,17 @@ const INITIAL_STATE: AppState = {
   panels: [],
   generationConfig: DEFAULT_GENERATION_CONFIG,
   jobs: [],
+  generationMode: DEFAULT_GENERATION_MODE,
+  selectedModel: DEFAULT_MODEL_ID,
+  generationStatus: {
+    status: 'idle',
+    currentPanel: 0,
+    totalPanels: 0,
+  },
   modelStatus: {
     status: 'idle',
     progress: 0,
-    loadedFiles: 0,
-    totalFiles: 4,
   },
-  selectedModel: DEFAULT_MODEL_ID,
   webgpuStatus: {
     supported: false,
     available: false,
@@ -148,12 +156,18 @@ export const useAppStore = create<AppState & AppActions>((set) => ({
   clearJobs: () =>
     set({ jobs: [] }),
 
-  // ---- Model ----
-  setModelStatus: (modelStatus) =>
-    set({ modelStatus }),
+  // ---- Mode & Model ----
+  setGenerationMode: (mode) =>
+    set({ generationMode: mode, selectedModel: getDefaultModelId(mode) }),
+
+  setGenerationStatus: (generationStatus) =>
+    set({ generationStatus }),
 
   setSelectedModel: (selectedModel) =>
     set({ selectedModel }),
+
+  setModelStatus: (modelStatus) =>
+    set({ modelStatus }),
 
   // ---- WebGPU ----
   setWebGPUStatus: (webgpuStatus) =>

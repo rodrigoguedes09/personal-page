@@ -87,7 +87,7 @@ export function UserInputForm() {
       {/* ============ Personal Info ============ */}
       <section>
         <h3 className="mb-3 font-manga text-lg tracking-wide text-manga-black">
-          👤 Personal Info
+          Personal Info
         </h3>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -154,7 +154,7 @@ export function UserInputForm() {
       {/* ============ Tech Stack ============ */}
       <section>
         <h3 className="mb-3 font-manga text-lg tracking-wide text-manga-black">
-          ⚔️ Tech Stack
+          Tech Stack
         </h3>
 
         {/* Selected techs */}
@@ -237,7 +237,7 @@ export function UserInputForm() {
       {/* ============ Projects ============ */}
       <section>
         <h3 className="mb-3 font-manga text-lg tracking-wide text-manga-black">
-          📦 Projects
+          Projects
         </h3>
 
         <div className="space-y-3">
@@ -295,7 +295,7 @@ export function UserInputForm() {
       {/* ============ Manga Style ============ */}
       <section>
         <h3 className="mb-3 font-manga text-lg tracking-wide text-manga-black">
-          🎨 Manga Style
+          Manga Style
         </h3>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -325,7 +325,7 @@ export function UserInputForm() {
       {/* ============ Layout ============ */}
       <section>
         <h3 className="mb-3 font-manga text-lg tracking-wide text-manga-black">
-          📐 Panel Layout
+          Panel Layout
         </h3>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
@@ -364,7 +364,7 @@ export function UserInputForm() {
               : 'bg-manga-gray-200 text-manga-gray-400 cursor-not-allowed',
           )}
         >
-          Continue →
+          Continue
         </button>
       </div>
     </div>

@@ -45,10 +45,10 @@ export function WebGPUStatus() {
           <div>
             <h3 className="text-sm font-bold text-manga-black">
               {isAvailable
-                ? '✓ WebGPU Ready'
+                ? 'WebGPU Ready'
                 : status.supported
-                  ? '⚠ WebGPU Limited'
-                  : '✗ WebGPU Not Available'}
+                  ? 'WebGPU Limited'
+                  : 'WebGPU Not Available'}
             </h3>
 
             {gpuName && (

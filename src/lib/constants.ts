@@ -1,4 +1,4 @@
-import type { ModelConfig, GenerationConfig, MangaStyle } from '@/types';
+import type { ModelConfig, GenerationConfig, MangaStyle, GenerationMode } from '@/types';
 
 // ============================================================
 // Application Constants
@@ -7,75 +7,101 @@ import type { ModelConfig, GenerationConfig, MangaStyle } from '@/types';
 export const APP_NAME = 'MangaREADME Generator';
 export const APP_VERSION = '0.1.0';
 export const APP_DESCRIPTION =
-  'Generate manga-style README images for GitHub using 100% client-side AI with WebGPU';
+  'Generate manga-style README images for GitHub using AI';
+
+// ============================================================
+// Generation Mode Defaults
+// ============================================================
+
+export const DEFAULT_GENERATION_MODE: GenerationMode = 'local';
 
 // ============================================================
 // Model Registry
 // ============================================================
 
 /**
- * Available models for image generation.
- * All models must be in ONNX format and hosted on HuggingFace Hub.
- * Quantized models (q4/q8) are recommended for integrated GPUs.
+ * Local models — downloaded once, run entirely in-browser via Transformers.js.
+ * Maximum privacy: no data leaves the user's machine after the initial download.
  */
-export const AVAILABLE_MODELS: ModelConfig[] = [
+export const LOCAL_MODELS: ModelConfig[] = [
+  {
+    id: 'onnx-community/stable-diffusion-3.5-medium',
+    name: 'SD 3.5 Medium (Local)',
+    description: 'Community ONNX model for in-browser generation (~2.8 GB download)',
+    isDefault: true,
+    mode: 'local',
+    size: '~2.8 GB',
+  },
   {
     id: 'Xenova/stable-diffusion-v1-5',
-    name: 'Stable Diffusion 1.5',
-    description: 'Classic SD 1.5 — good quality, broad style support',
-    size: '~1.7 GB (fp16)',
-    quantization: 'fp16',
+    name: 'SD 1.5 (Local)',
+    description: 'Classic SD 1.5 converted to ONNX (~1.7 GB download)',
     isDefault: false,
-    minVRAM: 2048,
-    components: [
-      { name: 'tokenizer', subfolder: 'tokenizer', filename: 'tokenizer.json', sizeBytes: 500_000 },
-      { name: 'text_encoder', subfolder: 'text_encoder', filename: 'model.onnx', sizeBytes: 250_000_000 },
-      { name: 'unet', subfolder: 'unet', filename: 'model.onnx', sizeBytes: 1_300_000_000 },
-      { name: 'vae_decoder', subfolder: 'vae_decoder', filename: 'model.onnx', sizeBytes: 150_000_000 },
-    ],
-  },
-  {
-    id: 'schreiber/sdxl-turbo-webgpu',
-    name: 'SDXL Turbo (WebGPU)',
-    description: 'Ultra-fast 1-4 step generation, optimized for WebGPU',
-    size: '~2.1 GB (fp16)',
-    quantization: 'fp16',
-    isDefault: true,
-    minVRAM: 3072,
-    components: [
-      { name: 'tokenizer', subfolder: 'tokenizer', filename: 'tokenizer.json', sizeBytes: 500_000 },
-      { name: 'text_encoder', subfolder: 'text_encoder', filename: 'model.onnx', sizeBytes: 250_000_000 },
-      { name: 'unet', subfolder: 'unet', filename: 'model.onnx', sizeBytes: 1_700_000_000 },
-      { name: 'vae_decoder', subfolder: 'vae_decoder', filename: 'model.onnx', sizeBytes: 150_000_000 },
-    ],
-  },
-  {
-    id: 'stabilityai/sd-turbo',
-    name: 'SD Turbo',
-    description: 'Fast 1-4 step generation based on SD 2.1',
-    size: '~1.5 GB (fp16)',
-    quantization: 'fp16',
-    isDefault: false,
-    minVRAM: 2048,
-    components: [
-      { name: 'tokenizer', subfolder: 'tokenizer', filename: 'tokenizer.json', sizeBytes: 500_000 },
-      { name: 'text_encoder', subfolder: 'text_encoder', filename: 'model.onnx', sizeBytes: 250_000_000 },
-      { name: 'unet', subfolder: 'unet', filename: 'model.onnx', sizeBytes: 1_100_000_000 },
-      { name: 'vae_decoder', subfolder: 'vae_decoder', filename: 'model.onnx', sizeBytes: 150_000_000 },
-    ],
+    mode: 'local',
+    size: '~1.7 GB',
   },
 ];
 
-export const DEFAULT_MODEL_ID =
-  AVAILABLE_MODELS.find((m) => m.isDefault)?.id ?? AVAILABLE_MODELS[0].id;
+/**
+ * API models — no downloads, runs on HuggingFace Inference API servers.
+ * Requires internet; optional token for higher rate limits.
+ */
+export const API_MODELS: ModelConfig[] = [
+  {
+    id: 'stabilityai/stable-diffusion-xl-base-1.0',
+    name: 'SDXL 1.0 (API)',
+    description: 'High quality, detailed images (recommended)',
+    isDefault: true,
+    mode: 'api',
+    defaultSteps: 30,
+    defaultCfg: 7.5,
+    maxResolution: 1024,
+  },
+  {
+    id: 'runwayml/stable-diffusion-v1-5',
+    name: 'Stable Diffusion 1.5 (API)',
+    description: 'Classic model, fast and reliable',
+    isDefault: false,
+    mode: 'api',
+    defaultSteps: 25,
+    defaultCfg: 7.5,
+    maxResolution: 768,
+  },
+  {
+    id: 'stabilityai/stable-diffusion-2-1',
+    name: 'Stable Diffusion 2.1 (API)',
+    description: 'Improved quality over 1.5, good for detailed scenes',
+    isDefault: false,
+    mode: 'api',
+    defaultSteps: 30,
+    defaultCfg: 7.5,
+    maxResolution: 768,
+  },
+];
+
+/** All models combined */
+export const AVAILABLE_MODELS: ModelConfig[] = [...LOCAL_MODELS, ...API_MODELS];
+
+/** Get the default model ID for a given mode */
+export function getDefaultModelId(mode: GenerationMode): string {
+  const models = mode === 'local' ? LOCAL_MODELS : API_MODELS;
+  return models.find((m) => m.isDefault)?.id ?? models[0].id;
+}
+
+/** Get models filtered by generation mode */
+export function getModelsForMode(mode: GenerationMode): ModelConfig[] {
+  return mode === 'local' ? LOCAL_MODELS : API_MODELS;
+}
+
+export const DEFAULT_MODEL_ID = getDefaultModelId(DEFAULT_GENERATION_MODE);
 
 // ============================================================
 // Generation Defaults
 // ============================================================
 
 export const DEFAULT_GENERATION_CONFIG: GenerationConfig = {
-  steps: 4,
-  guidanceScale: 0.0, // Turbo models don't need CFG
+  steps: 30,
+  guidanceScale: 7.5,
   width: 512,
   height: 512,
   style: 'shonen',
@@ -84,10 +110,9 @@ export const DEFAULT_GENERATION_CONFIG: GenerationConfig = {
 };
 
 export const GENERATION_PRESETS: Record<string, Partial<GenerationConfig>> = {
-  fast: { steps: 1, width: 512, height: 512 },
-  balanced: { steps: 4, width: 512, height: 512 },
-  quality: { steps: 8, width: 768, height: 768 },
-  hd: { steps: 12, width: 1024, height: 1024 },
+  fast: { steps: 15, width: 512, height: 512, guidanceScale: 7.0 },
+  balanced: { steps: 30, width: 512, height: 512, guidanceScale: 7.5 },
+  quality: { steps: 40, width: 768, height: 768, guidanceScale: 8.0 },
 };
 
 // ============================================================
@@ -199,11 +224,11 @@ export const CANVAS_DEFAULTS = {
 };
 
 export const EXPORT_SIZES = {
-  'github-social': { width: 1280, height: 640, label: 'GitHub Social Preview (1280×640)' },
-  'github-readme': { width: 1200, height: 630, label: 'README Banner (1200×630)' },
-  'wide': { width: 1920, height: 640, label: 'Wide Banner (1920×640)' },
-  'square': { width: 1024, height: 1024, label: 'Square (1024×1024)' },
-  'manga-page': { width: 800, height: 1200, label: 'Manga Page (800×1200)' },
+  'github-social': { width: 1280, height: 640, label: 'GitHub Social Preview (1280x640)' },
+  'github-readme': { width: 1200, height: 630, label: 'README Banner (1200x630)' },
+  'wide': { width: 1920, height: 640, label: 'Wide Banner (1920x640)' },
+  'square': { width: 1024, height: 1024, label: 'Square (1024x1024)' },
+  'manga-page': { width: 800, height: 1200, label: 'Manga Page (800x1200)' },
 } as const;
 
 export type ExportSizeKey = keyof typeof EXPORT_SIZES;

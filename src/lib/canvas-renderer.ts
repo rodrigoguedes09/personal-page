@@ -187,7 +187,7 @@ function drawPanelPlaceholder(ctx: CanvasRenderingContext2D, panel: MangaPanel):
   // "Click to generate" hint
   ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
   ctx.font = `${Math.min(11, panel.width / 20)}px sans-serif`;
-  ctx.fillText('⚡ Generate', centerX, centerY);
+  ctx.fillText('Generate', centerX, centerY);
 
   ctx.restore();
 }
