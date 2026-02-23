@@ -1,0 +1,221 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   MangaREADME Generator — Global Styles
+   ============================================================ */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ---- Base ---- */
+@layer base {
+  :root {
+    --manga-border: 3px;
+    --manga-shadow: 4px 4px 0 0 rgba(0, 0, 0, 1);
+    --manga-shadow-sm: 2px 2px 0 0 rgba(0, 0, 0, 1);
+    --manga-shadow-lg: 6px 6px 0 0 rgba(0, 0, 0, 0.3);
+  }
+
+  html {
+    @apply scroll-smooth antialiased;
+  }
+
+  body {
+    @apply bg-manga-gray-100 font-body text-manga-black;
+    background-image:
+      radial-gradient(circle, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-manga-accent/20 text-manga-black;
+  }
+}
+
+/* ---- Custom Components ---- */
+@layer components {
+  /* Manga-style card */
+  .manga-card {
+    @apply rounded-sm border-2 border-manga-black bg-white p-4;
+    box-shadow: var(--manga-shadow-sm);
+  }
+
+  .manga-card:hover {
+    box-shadow: none;
+    transform: translate(2px, 2px);
+  }
+
+  /* Manga section heading */
+  .manga-heading {
+    @apply font-manga text-xl tracking-wide text-manga-black;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  /* Button styles */
+  .btn-manga-primary {
+    @apply rounded-sm border-2 border-manga-black px-6 py-3
+      font-manga tracking-wider text-white
+      bg-manga-accent transition-all;
+    box-shadow: var(--manga-shadow);
+  }
+
+  .btn-manga-primary:hover {
+    box-shadow: none;
+    transform: translate(4px, 4px);
+  }
+
+  .btn-manga-primary:disabled {
+    @apply opacity-30 cursor-not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .btn-manga-secondary {
+    @apply rounded-sm border-2 border-manga-black px-4 py-2
+      font-bold text-manga-black bg-white
+      transition-all;
+    box-shadow: var(--manga-shadow-sm);
+  }
+
+  .btn-manga-secondary:hover {
+    box-shadow: none;
+    transform: translate(2px, 2px);
+    @apply bg-manga-gray-100;
+  }
+
+  /* Step indicator */
+  .step-indicator {
+    @apply flex items-center gap-1.5;
+  }
+
+  .step-dot {
+    @apply h-3 w-3 rounded-full border-2 border-manga-black transition-colors;
+  }
+
+  .step-dot--active {
+    @apply bg-manga-accent;
+  }
+
+  .step-dot--completed {
+    @apply bg-manga-black;
+  }
+
+  .step-dot--pending {
+    @apply bg-white;
+  }
+
+  /* Scrollbar styling */
+  .manga-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .manga-scrollbar::-webkit-scrollbar-track {
+    @apply bg-manga-gray-100;
+  }
+
+  .manga-scrollbar::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-manga-gray-400;
+  }
+
+  .manga-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-manga-gray-600;
+  }
+}
+
+/* ---- Utility Styles ---- */
+@layer utilities {
+  /* Manga panel border */
+  .manga-border {
+    border: var(--manga-border) solid theme('colors.manga.black');
+  }
+
+  /* Screentone backgrounds */
+  .bg-screentone {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.15) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  .bg-screentone-dark {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.3) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  /* Speed line effect */
+  .manga-speedlines {
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.06) 2px,
+      rgba(0, 0, 0, 0.06) 3px
+    );
+  }
+
+  /* Impact flash */
+  .manga-impact {
+    position: relative;
+  }
+
+  .manga-impact::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.8) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+    animation: impactFlash 0.6s ease-out;
+  }
+
+  @keyframes impactFlash {
+    0% { opacity: 1; transform: scale(0.8); }
+    100% { opacity: 0; transform: scale(1.5); }
+  }
+
+  /* Glow text */
+  .text-glow {
+    text-shadow:
+      0 0 10px rgba(255, 71, 87, 0.4),
+      0 0 20px rgba(255, 71, 87, 0.2);
+  }
+}
+
+/* ---- Animations ---- */
+@keyframes mangaEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) rotate(-2deg);
+    filter: blur(4px);
+  }
+  50% {
+    transform: scale(1.02) rotate(0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    filter: blur(0);
+  }
+}
+
+.animate-manga-entrance {
+  animation: mangaEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes panelReveal {
+  0% {
+    clip-path: inset(100% 0 0 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.animate-panel-reveal {
+  animation: panelReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
